@@ -1,6 +1,6 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import sqrt
+from math import sqrt, sin, cos
 
 class World:
     '''The World class manages all the simulation resources.'''
@@ -8,6 +8,8 @@ class World:
     def __init__(self):
         self.obstacles = []
         self.entities = []
+        self.resolution = 0.01
+        self.max_dist = 1000
 
     def add_obs(self, obstacle):
         '''Adds an obstacle to the list.'''
@@ -19,14 +21,44 @@ class World:
 
     def ray_cast(self, x, y, theta):
         '''Returns the distance until a collision from (x, y) in the theta direction.'''
-        #TODO(Daniel): implement
-        pass
+        x_inc = self.resolution * cos(theta)
+        y_inc = self.resolution * sin(theta)
+        
+        current_x = x
+        current_y = y
+        dist = 0
+
+        while dist < self.max_dist:
+            for obstacle in self.obstacles:
+                if obstacle.is_inside(current_x, current_y):
+                    return dist
+
+            dist += self.resolution
+            current_x += x_inc
+            current_y += y_inc
+
+        return -1
 
     def move_ent(self, entity, distance, theta):
         '''Attempts to move entity distance in the theta direction, keeping in mind collisions.'''
         entity.record_move(distance, theta)
-        #TODO(Daniel): implement
-        pass
+
+        clearance = 0
+        x, y, ent_theta = entity.get_pos()
+        x_inc = self.resolution * cos(theta)
+        y_inc = self.resolution * sin(theta)
+        current_x = x
+        current_y = y
+
+        while entity.is_inside(current_x, current_y):
+            clearance += self.resolution
+            current_x += x_inc
+            current_y += y_inc
+
+        max_distance = max(self.ray_cast(x, y, theta) - clearance, 0)
+        real_distance = min(max_distance, distance)
+
+        entity.set_pos(x + (real_distance * cos(theta)), y + (real_distance * sin(theta)), ent_theta)
 
     def display(self, x_max, x_min, y_max, y_min, resolution):
         '''Displays the environment, by default just as a character array.'''
