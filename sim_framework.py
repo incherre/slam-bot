@@ -1,6 +1,6 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import sqrt, sin, cos
+from math import sqrt, sin, cos, floor, ceil
 
 class World:
     '''The World class manages all the simulation resources.'''
@@ -62,8 +62,24 @@ class World:
 
     def display(self, x_max, x_min, y_max, y_min, resolution):
         '''Displays the environment, by default just as a character array.'''
-        #TODO(Daniel): implement
-        pass
+        y = y_max
+        while y >= y_min:
+            x = x_min
+            while x <= x_max:
+                for i in range(len(self.entities)):
+                    if self.entities[i].is_inside(x, y):
+                        print(i % 10, end='')
+                        break
+                else:
+                    for obs in self.obstacles:
+                        if obs.is_inside(x, y):
+                            print('#', end='')
+                            break
+                    else:
+                        print(' ', end='')
+                x += resolution
+            print()
+            y -= resolution
 
 class Obstacle(ABC):
     '''A visual and physical obstruction in a World.'''
@@ -86,7 +102,7 @@ class Wall(Obstacle):
         self.threshold = position
 
         if option.lower() in ['+x', '-x', '+y', '-y']:
-            self.option = option
+            self.option = option.lower()
         else:
             raise ValueError('Invalid option parameter. Accepted values are: \'+x\', \'-x\', \'+y\', \'-y\'')
 
@@ -178,3 +194,20 @@ class CircleBot(Entity):
         '''Checks if (x, y) is within self.radius of self.'''
         distance = sqrt((self.x - x) ** 2 + (self.y - y) ** 2)
         return distance <= self.radius
+
+if __name__ == '__main__':
+    W = World()
+    W.add_obs(Wall(-5, '-x'))
+    W.add_obs(Wall(5, '+x'))
+    W.add_obs(Wall(-5, '-y'))
+    W.add_obs(Wall(5, '+y'))
+    W.add_obs(Box(-5.5, -3, 3, 5.5))
+
+    bot = CircleBot(1, 0, 0, 0)
+    W.add_ent(bot)
+    
+    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+    W.move_ent(bot, 2, bot.theta)
+    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+    W.move_ent(bot, 20, bot.theta)
+    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
