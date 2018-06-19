@@ -1,6 +1,6 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import sqrt, sin, cos, floor, ceil
+from math import sqrt, sin, cos, floor, ceil, radians
 
 class World:
     '''The World class manages all the simulation resources.'''
@@ -54,6 +54,13 @@ class World:
             clearance += self.resolution
             current_x += x_inc
             current_y += y_inc
+
+        current_x += x_inc / 2
+        current_y += y_inc / 2
+        if entity.is_inside(current_x, current_y):
+            clearance += self.resolution
+        else:
+            clearance += self.resolution / 2
 
         max_distance = max(self.ray_cast(x, y, theta) - clearance, 0)
         real_distance = min(max_distance, distance)
@@ -156,7 +163,7 @@ class Entity(ABC):
         '''Sets the position of the entity as (x, y, theta).'''
         self.x = x
         self.y = y
-        self.theta = theta
+        self.theta = theta % radians(360)
 
     @abstractmethod
     def record_move(self, distance, theta):
@@ -169,7 +176,7 @@ class Entity(ABC):
         pass
 
 class CircleBot(Entity):
-    '''A simple circular entity that can keep track of ~distance traveled.'''
+    '''A simple circular entity that can keep track of distance traveled.'''
 
     def __init__(self, radius, x, y, theta):
         super().__init__()
@@ -180,7 +187,7 @@ class CircleBot(Entity):
 
     def record_move(self, distance, theta):
         '''Records the distance attempted. Assume wheel slippage if it runs into an obstacle.'''
-        self.odemetry += distance #TODO(Daniel): Add noise of some kind
+        self.odemetry += distance
 
     def get_odemetry(self):
         '''Returns the current distance sum.'''
