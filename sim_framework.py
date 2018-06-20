@@ -5,11 +5,11 @@ from math import sqrt, sin, cos, floor, ceil, radians
 class World:
     '''The World class manages all the simulation resources.'''
 
-    def __init__(self):
+    def __init__(self, resolution=0.01, max_dist=1000):
         self.obstacles = []
         self.entities = []
-        self.resolution = 0.01
-        self.max_dist = 1000
+        self.resolution = resolution
+        self.max_dist = max_dist
 
     def add_obs(self, obstacle):
         '''Adds an obstacle to the list.'''
