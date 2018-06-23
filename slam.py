@@ -1,7 +1,7 @@
 '''An implementation of SLAM techniques.'''
 import sim_framework
 from abc import ABC, abstractmethod
-from math import radians, sin, cos
+from math import radians, sin, cos, fsum, isinf, sqrt
 from random import choice, sample
 
 class SensingAndControl(ABC):
@@ -56,16 +56,64 @@ class SimBot(SensingAndControl):
 
         return self.bot.get_odemetry()
 
+def linear_regression(points):
+    '''Calculates ax + by + c = 0 from the given points.'''
+
+    n = len(points)
+    sx = fsum([p[0] for p in points])
+    sy = fsum([p[1] for p in points])
+    sxx = fsum([p[0] ** 2 for p in points])
+    sxy = fsum([p[0] * p[1] for p in points])
+    syy = fsum([p[1] ** 2 for p in points])
+
+    try:
+        a = ((n * sxy) - (sx * sy)) / ((n * sxx) - (sx ** 2))
+    except ZeroDivisionError:
+        # if the line is vertical, y is not considered
+        a = -1
+        b = 0
+        c = sx / n
+    else:
+        b = -1
+        c = (sy / n) - ((a * sx) / n)
+
+    return (a, b, c)
+
+def min_distance(line, point):
+    '''Calculates the minimum distance between a line and a point.'''
+
+    a, b, c = line
+
+    # extracting coordinates this way allows extra elements to be ignored
+    x = point[0]
+    y = point[1]
+
+    return abs((a * x) + (b * y) + c) / sqrt((a ** 2) + (b ** 2))
+
+def closest_point(line, point):
+    '''Calculates the point on a line closest to another point.'''
+
+    a, b, c = line
+
+    # extracting coordinates this way allows extra elements to be ignored
+    x = point[0]
+    y = point[1]
+
+    line_x = ((b * ((b * x) - (a * y))) - (a * c)) / ((a ** 2) + (b ** 2))
+    line_y = ((a * ((a * y) - (b * x))) - (b * c)) / ((a ** 2) + (b ** 2))
+
+    return (line_x, line_y)
+
 class Slam:
     '''Manages a Slam instance.'''
 
     spike_threshold = 0.5
 
-    ransac_max_tries = 500
+    ransac_max_tries = 1000
     ransac_samples = 5
     ransac_range = 10
     ransac_error = 0.5
-    ransac_consensus = 15
+    ransac_consensus = 20
 
     def __init__(self, control):
         self.control = control
@@ -132,15 +180,27 @@ class Slam:
             # select configured number of points, always including the base point
             points = [point] + sample(possible_points, self.ransac_samples - 1)
 
-            # TODO(Daniel): generate best fit
+            # generate best fit
+            line = linear_regression(points)
+            # TODO(Daniel): transition to using 'total least squares'
 
-            # TODO(Daniel): break if line doesn't meet consensus
+            # break if line doesn't meet consensus
+            supporters = []
+            for point in data:
+                if not point[2] in associated and min_distance(line, point) < self.ransac_error:
+                    supporters.append(point)
+            if len(supporters) < self.ransac_consensus:
+                break
 
-            # TODO(Daniel): associate all points close enough
+            # associate all points close enough
+            for point in supporters:
+                associated.add(point[2])
 
-            # TODO(Daniel): regenerate best fit using all points close enough
+            # regenerate best fit using all points close enough
+            line = linear_regression(supporters)
 
-            # TODO(Daniel): calculate landmark representation, add to landmarks list
+            # calculate landmark representation, add to landmarks list
+            landmarks.append(closest_point(line, (0,0)))
 
         return landmarks
 
@@ -158,5 +218,6 @@ if __name__ == "__main__":
 
     slam = Slam(SimBot(W, bot))
 
-    print(slam.extract_spike())
+    print('spike:', slam.extract_spike())
+    print('ransac:', slam.extract_ransac())
     W.display(5.5, -5.5, 5.5, -5.5, 0.5)
