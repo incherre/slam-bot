@@ -2,6 +2,7 @@
 import sim_framework
 from abc import ABC, abstractmethod
 from math import radians, sin, cos
+from random import choice, sample
 
 class SensingAndControl(ABC):
     '''The abstract class for obtaining readings and controlling the robot.'''
@@ -60,6 +61,12 @@ class Slam:
 
     spike_threshold = 0.5
 
+    ransac_max_tries = 500
+    ransac_samples = 5
+    ransac_range = 10
+    ransac_error = 0.5
+    ransac_consensus = 15
+
     def __init__(self, control):
         self.control = control
         self.landmarks = dict()
@@ -69,17 +76,71 @@ class Slam:
     def extract_spike(self):
         '''Observe environment and extract landmarks using the spike technique.'''
 
-        data = self.control.get_distance_reading()
+        raw_data = self.control.get_distance_reading()
         landmarks = []
-        for i, B in enumerate(data):
-            A = data[(i - 1) % len(data)]
-            C = data[(i + 1) % len(data)]
+        x, y, theta = self.pos
 
-            if A >= 0 and B >= 0 and C >= 0 and abs((A - B) + (C - B)) >= self.spike_threshold:
-                x = self.pos[0] + (B * cos(self.pos[2] - radians(i)))
-                y = self.pos[1] + (B * sin(self.pos[2] - radians(i)))
+        for i, B in enumerate(raw_data):
+            A = raw_data[(i - 1) % len(raw_data)]
+            C = raw_data[(i + 1) % len(raw_data)]
 
-                landmarks.append((x, y))
+            if A >= 0 and B >= 0 and C >= 0 and ((A - B) + (C - B)) >= self.spike_threshold:
+                mark_x = x + (B * cos(theta - radians(i)))
+                mark_y = y + (B * sin(theta - radians(i)))
+
+                landmarks.append((mark_x, mark_y))
+
+        return landmarks
+
+    def extract_ransac(self):
+        '''Observe environment and extract landmarks using the RANSAC technique.'''
+
+        landmarks = []
+        x, y, theta = self.pos
+
+        # process the data into points and angles
+        data = [(x + (distance * cos(theta - radians(angle))),
+                 y + (distance * sin(theta - radians(angle))),
+                 angle) for angle, distance in
+                enumerate(self.control.get_distance_reading())]
+
+        associated = set()
+        for i in range(self.ransac_max_tries):
+            if len(data) - len(associated) < self.ransac_consensus:
+                # if there are not enough points to reach consensus, quit
+                break
+
+            # select a base point for the fit
+            point = choice([p for p in data if not p[2] in associated])
+
+            # define the start and end for the considered range
+            start = (point[2] - self.ransac_range) % len(data)
+            end = (point[2] + self.ransac_range + 1) % len(data)
+
+            # generate a list of unclaimed points within the range
+            if start < end:
+                possible_points = [p for p in data[start:end]
+                                   if not p[2] in associated and p[2] != point[2]]
+            else:
+                possible_points = [p for p in data[start:] + data[:end]
+                                   if not p[2] in associated and p[2] != point[2]]
+
+            if len(possible_points) < (self.ransac_samples - 1):
+                # if there are not enough points for the fit, quit
+                break
+
+            # select configured number of points, always including the base point
+            points = [point] + sample(possible_points, self.ransac_samples - 1)
+
+            # TODO(Daniel): generate best fit
+
+            # TODO(Daniel): break if line doesn't meet consensus
+
+            # TODO(Daniel): associate all points close enough
+
+            # TODO(Daniel): regenerate best fit using all points close enough
+
+            # TODO(Daniel): calculate landmark representation, add to landmarks list
 
         return landmarks
 
