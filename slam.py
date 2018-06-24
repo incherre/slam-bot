@@ -113,7 +113,7 @@ class Slam:
     ransac_samples = 5
     ransac_range = 10
     ransac_error = 0.5
-    ransac_consensus = 20
+    ransac_consensus = 25
 
     def __init__(self, control):
         self.control = control
@@ -174,8 +174,8 @@ class Slam:
                                    if not p[2] in associated and p[2] != point[2]]
 
             if len(possible_points) < (self.ransac_samples - 1):
-                # if there are not enough points for the fit, quit
-                break
+                # if there are not enough points for the fit, restart
+                continue
 
             # select configured number of points, always including the base point
             points = [point] + sample(possible_points, self.ransac_samples - 1)
@@ -184,13 +184,13 @@ class Slam:
             line = linear_regression(points)
             # TODO(Daniel): transition to using 'total least squares'
 
-            # break if line doesn't meet consensus
+            # restart if line doesn't meet consensus
             supporters = []
             for point in data:
                 if not point[2] in associated and min_distance(line, point) < self.ransac_error:
                     supporters.append(point)
             if len(supporters) < self.ransac_consensus:
-                break
+                continue
 
             # associate all points close enough
             for point in supporters:
