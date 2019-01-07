@@ -1,0 +1,15 @@
+Tasks:
+
+-Decide whether or not to use off the shelf linear algebra
+-Research or implement linear algebra
+-Consider refactoring
+	-Series of steps
+		-Initialize everything
+		-Observe & extract landmarks
+		-Associate landmarks (handle both types)
+		-Update distributions
+		-Add any new landmarks
+	-Things outside of basic SLAM
+		-Maintain obstacle map in addition to landmark map
+		-Target un-observed portions of the environment
+-Code it up
