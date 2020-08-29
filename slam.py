@@ -104,6 +104,55 @@ def closest_point(line, point):
 
     return (line_x, line_y)
 
+class Landmark:
+    '''A representation of a SLAM landmark.'''
+
+    def __init__(self, type_name, landmark_x, landmark_y):
+        self.type_name = type_name
+        self.x = landmark_x
+        self.y = landmark_y
+        self.times_seen = 1
+
+    def increment_seen(self):
+        self.times_seen += 1
+
+    def update_postition(self, new_x, new_y):
+        self.x = new_x
+        self.y = new_y
+
+    def __repr__(self):
+        return "Landmark of type '{}', located at ({},{}), seen {} time/s.".format(
+            self.type_name, self.x, self.y, self.times_seen)
+
+class LandmarkDB:
+    '''Manages a database of landmarks.'''
+
+    def __init__(self):
+        self.db = []
+
+    def find_nearest(self, type_name, landmark_x, landmark_y):
+        '''Returns the nearest landmark of the same type. May return None.'''
+        # TODO(Daniel): if this ends up being too slow, look into http://en.wikipedia.org/wiki/Quadtree
+        # or maybe just hand tuned 2d buckets.
+
+        nearest = None
+        nearest_distance = 0
+        for landmark in self.db:
+            if landmark.type_name != type_name:
+                continue
+
+            this_distance = sqrt((landmark_x - landmark.x) ** 2 + (landmark_y - landmark.y) ** 2)
+            
+            if nearest is None or this_distance < nearest_distance:
+                nearest = landmark
+                nearest_distance = this_distance
+
+        return nearest
+
+    def insert_landmark(self, landmark):
+        self.db.append(landmark)
+                
+
 class Slam:
     '''Manages a Slam instance.'''
 
@@ -218,6 +267,12 @@ if __name__ == "__main__":
 
     slam = Slam(SimBot(W, bot))
 
-    print('spike:', slam.extract_spike())
-    print('ransac:', slam.extract_ransac())
+    print("spike:", slam.extract_spike())
+    print("ransac:", slam.extract_ransac())
     W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+
+    db = LandmarkDB()
+    print(db.find_nearest("test_type", 0, 0))
+    db.insert_landmark(Landmark("test_type", 0, 0))
+    print(db.find_nearest("test_type", 1, 1))
+    print(db.find_nearest("other_type", 0, 0))

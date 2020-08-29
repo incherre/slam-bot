@@ -1,7 +1,6 @@
 Tasks:
 
--Decide whether or not to use off the shelf linear algebra
--Research or implement linear algebra
+-Use numpy for linear algebra
 -Consider refactoring
 	-Series of steps
 		-Initialize everything
