@@ -1,6 +1,7 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
 from math import sqrt, sin, cos, floor, ceil, radians
+from slam import SensingAndControl
 
 class World:
     '''The World class manages all the simulation resources.'''
@@ -201,6 +202,40 @@ class CircleBot(Entity):
         '''Checks if (x, y) is within self.radius of self.'''
         distance = sqrt((self.x - x) ** 2 + (self.y - y) ** 2)
         return distance <= self.radius
+
+class SimBotControl(SensingAndControl):
+    '''A robot in a simulation.'''
+
+    def __init__(self, world, bot):
+        super().__init__()
+
+        self.world = world
+        self.bot = bot
+
+    def get_distance_reading(self):
+        '''Returns the distance reading.'''
+        #TODO(Daniel): add sensor noise
+
+        reading = []
+        x, y, theta = self.bot.get_pos()
+
+        for i in range(360):
+            reading.append(self.world.ray_cast(x, y, theta - radians(i)))
+
+        return reading
+
+    def move(self, theta, distance):
+        '''Turn theta and go distance.'''
+        #TODO(Daniel): add sensor / control noise
+
+        x, y, old_theta = self.bot.get_pos()
+        new_theta = old_theta + theta
+        self.bot.set_pos(x, y, new_theta)
+        self.bot.reset_odemetry()
+
+        self.world.move_ent(self.bot, distance, new_theta)
+
+        return self.bot.get_odemetry()
 
 if __name__ == '__main__':
     W = World()

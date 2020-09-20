@@ -1,8 +1,8 @@
 '''An implementation of SLAM techniques.'''
-import sim_framework
 from abc import ABC, abstractmethod
 from math import radians, sin, cos, fsum, isinf, sqrt
-from random import choice, sample
+from random import choice, sample, seed
+from enum import Enum, auto, unique
 
 class SensingAndControl(ABC):
     '''The abstract class for obtaining readings and controlling the robot.'''
@@ -21,40 +21,6 @@ class SensingAndControl(ABC):
     def move(self, theta, distance):
         '''Turn theta then go distance and return odemetry.'''
         pass
-
-class SimBot(SensingAndControl):
-    '''A robot in a simulation.'''
-
-    def __init__(self, world, bot):
-        super().__init__()
-
-        self.world = world
-        self.bot = bot
-
-    def get_distance_reading(self):
-        '''Returns the distance reading.'''
-        #TODO(Daniel): add sensor noise
-
-        reading = []
-        x, y, theta = self.bot.get_pos()
-
-        for i in range(360):
-            reading.append(self.world.ray_cast(x, y, theta - radians(i)))
-
-        return reading
-
-    def move(self, theta, distance):
-        '''Turn theta and go distance.'''
-        #TODO(Daniel): add sensor / control noise
-
-        x, y, old_theta = self.bot.get_pos()
-        new_theta = old_theta + theta
-        self.bot.set_pos(x, y, new_theta)
-        self.bot.reset_odemetry()
-
-        self.world.move_ent(self.bot, distance, new_theta)
-
-        return self.bot.get_odemetry()
 
 def linear_regression(points):
     '''Calculates ax + by + c = 0 from the given points.'''
@@ -104,11 +70,16 @@ def closest_point(line, point):
 
     return (line_x, line_y)
 
+@unique
+class LandmarkType(Enum):
+    SPIKE = auto()
+    RANSAC = auto()
+
 class Landmark:
     '''A representation of a SLAM landmark.'''
 
-    def __init__(self, type_name, landmark_x, landmark_y):
-        self.type_name = type_name
+    def __init__(self, landmark_type, landmark_x, landmark_y):
+        self.landmark_type = landmark_type
         self.x = landmark_x
         self.y = landmark_y
         self.times_seen = 1
@@ -122,7 +93,12 @@ class Landmark:
 
     def __repr__(self):
         return "Landmark of type '{}', located at ({},{}), seen {} time/s.".format(
-            self.type_name, self.x, self.y, self.times_seen)
+            self.landmark_type, self.x, self.y, self.times_seen)
+
+    def __eq__(self, other):
+        return isinstance(other, Landmark) and \
+            self.landmark_type == other.landmark_type and \
+            self.x == other.x and self.y == other.y
 
 class LandmarkDB:
     '''Manages a database of landmarks.'''
@@ -130,7 +106,7 @@ class LandmarkDB:
     def __init__(self):
         self.db = []
 
-    def find_nearest(self, type_name, landmark_x, landmark_y):
+    def find_nearest(self, landmark_type, landmark_x, landmark_y):
         '''Returns the nearest landmark of the same type. May return None.'''
         # TODO(Daniel): if this ends up being too slow, look into http://en.wikipedia.org/wiki/Quadtree
         # or maybe just hand tuned 2d buckets.
@@ -138,7 +114,7 @@ class LandmarkDB:
         nearest = None
         nearest_distance = 0
         for landmark in self.db:
-            if landmark.type_name != type_name:
+            if landmark.landmark_type != landmark_type:
                 continue
 
             this_distance = sqrt((landmark_x - landmark.x) ** 2 + (landmark_y - landmark.y) ** 2)
@@ -160,20 +136,19 @@ class Slam:
 
     ransac_max_tries = 1000
     ransac_samples = 5
-    ransac_range = 10
+    ransac_range = 20
     ransac_error = 0.5
-    ransac_consensus = 25
+    ransac_consensus = 30
 
     def __init__(self, control):
         self.control = control
-        self.landmarks = dict()
+        self.landmarks = LandmarkDB()
         self.pos = (0, 0, 0) # (x, y, theta)
         self.map = []
 
-    def extract_spike(self):
+    def extract_spike(self, raw_data):
         '''Observe environment and extract landmarks using the spike technique.'''
 
-        raw_data = self.control.get_distance_reading()
         landmarks = []
         x, y, theta = self.pos
 
@@ -189,8 +164,12 @@ class Slam:
 
         return landmarks
 
-    def extract_ransac(self):
+    def extract_ransac(self, raw_data, seed_override=None):
         '''Observe environment and extract landmarks using the RANSAC technique.'''
+
+        # allow setting the random seed for predictable testing
+        if seed_override is not None:
+            seed(seed_override)
 
         landmarks = []
         x, y, theta = self.pos
@@ -199,7 +178,7 @@ class Slam:
         data = [(x + (distance * cos(theta - radians(angle))),
                  y + (distance * sin(theta - radians(angle))),
                  angle) for angle, distance in
-                enumerate(self.control.get_distance_reading())]
+                enumerate(raw_data)]
 
         associated = set()
         for i in range(self.ransac_max_tries):
@@ -252,27 +231,3 @@ class Slam:
             landmarks.append(closest_point(line, (0,0)))
 
         return landmarks
-
-if __name__ == "__main__":
-    W = sim_framework.World()
-    W.add_obs(sim_framework.Wall(-5, '-x'))
-    W.add_obs(sim_framework.Wall(5, '+x'))
-    W.add_obs(sim_framework.Wall(-5, '-y'))
-    W.add_obs(sim_framework.Wall(5, '+y'))
-    W.add_obs(sim_framework.Box(-5.5, -3, 3, 5.5))
-    W.add_obs(sim_framework.Box(3, 3.2, -3.2, -3))
-
-    bot = sim_framework.CircleBot(1, 0, 0, 0)
-    W.add_ent(bot)
-
-    slam = Slam(SimBot(W, bot))
-
-    print("spike:", slam.extract_spike())
-    print("ransac:", slam.extract_ransac())
-    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
-
-    db = LandmarkDB()
-    print(db.find_nearest("test_type", 0, 0))
-    db.insert_landmark(Landmark("test_type", 0, 0))
-    print(db.find_nearest("test_type", 1, 1))
-    print(db.find_nearest("other_type", 0, 0))
