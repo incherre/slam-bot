@@ -1,4 +1,4 @@
-'''This is the unit test file for the books-common.py file.'''
+'''This is the unit test file for the slam.py file.'''
 
 import unittest
 import sim_framework
