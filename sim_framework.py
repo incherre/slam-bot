@@ -1,16 +1,17 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import sqrt, sin, cos, floor, ceil, radians
+from math import sqrt, sin, cos, floor, ceil, radians, inf
 from slam import SensingAndControl
 
 class World:
     '''The World class manages all the simulation resources.'''
 
-    def __init__(self, resolution=0.01, max_dist=1000):
+    def __init__(self, resolution=0.01, max_dist=1000, collision_delta_theta=1):
         self.obstacles = []
         self.entities = []
         self.resolution = resolution
         self.max_dist = max_dist
+        self.collision_delta_theta = collision_delta_theta
 
     def add_obs(self, obstacle):
         '''Adds an obstacle to the list.'''
@@ -38,10 +39,10 @@ class World:
             current_x += x_inc
             current_y += y_inc
 
-        return -1
+        return inf
 
     def move_ent(self, entity, distance, theta):
-        '''Attempts to move entity distance in the theta direction, keeping in mind collisions.'''
+        '''Attempts to move entity distance in the theta direction, returns whether there was a collision.'''
         entity.record_move(distance, theta)
 
         clearance = 0
@@ -63,13 +64,28 @@ class World:
         else:
             clearance += self.resolution / 2
 
-        max_distance = max(self.ray_cast(x, y, theta) - clearance, 0)
+        collision_distance = min(
+            self.ray_cast(x, y, theta - self.collision_delta_theta),
+            self.ray_cast(x, y, theta),
+            self.ray_cast(x, y, theta + self.collision_delta_theta))
+        max_distance = max(collision_distance - clearance, 0)
         real_distance = min(max_distance, distance)
 
         entity.set_pos(x + (real_distance * cos(theta)), y + (real_distance * sin(theta)), ent_theta)
 
-    def display(self, x_max, x_min, y_max, y_min, resolution):
+        return real_distance < distance
+
+    def display(self, resolution):
         '''Displays the environment, by default just as a character array.'''
+        x_max = max(map(lambda obstacle: obstacle.center_point()[0]
+                        if obstacle.center_point()[0] is not None else -inf, self.obstacles))
+        x_min = min(map(lambda obstacle: obstacle.center_point()[0]
+                        if obstacle.center_point()[0] is not None else inf, self.obstacles))
+        y_max = max(map(lambda obstacle: obstacle.center_point()[1]
+                        if obstacle.center_point()[1] is not None else -inf, self.obstacles))
+        y_min = min(map(lambda obstacle: obstacle.center_point()[1]
+                        if obstacle.center_point()[1] is not None else inf, self.obstacles))
+
         y = y_max
         while y >= y_min:
             x = x_min
@@ -101,6 +117,12 @@ class Obstacle(ABC):
         '''Returns whether the point (x, y) is inside self.'''
         pass
 
+    @abstractmethod
+    def center_point(self):
+        '''Returns the center point (x, y) of the obstacle.
+           Either x or y may be None to indicate unbounded size in that dimension.'''
+        pass
+
 class Wall(Obstacle):
     '''An infinite horizontal or vertical border.'''
 
@@ -126,6 +148,13 @@ class Wall(Obstacle):
         else:
             return pos >= self.threshold
 
+    def center_point(self):
+        '''Returns a point-like object on the threshold of the wall with only the relevant axis defined.'''
+        if self.option[1] == 'x':
+            return (self.threshold, None)
+        else:
+            return (None, self.threshold)
+
 class Box(Obstacle):
     '''A square to get in the way of things.'''
 
@@ -147,6 +176,10 @@ class Box(Obstacle):
         ans = x >= self.x_min and x <= self.x_max
         ans = ans and y >= self.y_min and y <= self.y_max
         return ans
+
+    def center_point(self):
+        '''Returns the center point of the box.'''
+        return ((self.x_min + self.x_max) / 2, (self.y_min + self.y_max) / 2)
 
 class Entity(ABC):
     '''A mobile agent within a World.'''
@@ -248,8 +281,8 @@ if __name__ == '__main__':
     bot = CircleBot(1, 0, 0, 0)
     W.add_ent(bot)
     
-    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+    W.display(0.5)
     W.move_ent(bot, 2, bot.theta)
-    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+    W.display(0.5)
     W.move_ent(bot, 20, bot.theta)
-    W.display(5.5, -5.5, 5.5, -5.5, 0.5)
+    W.display(0.5)
