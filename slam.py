@@ -1,6 +1,6 @@
 '''An implementation of SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import radians, sin, cos, fsum, isinf, sqrt
+from math import radians, sin, cos, fsum, inf, sqrt
 from random import choice, sample, seed
 from enum import Enum, auto, unique
 
@@ -140,11 +140,69 @@ class Slam:
     ransac_error = 0.5
     ransac_consensus = 30
 
+    landmark_association_threshold = 5
+
     def __init__(self, control):
         self.control = control
         self.landmarks = LandmarkDB()
         self.pos = (0, 0, 0) # (x, y, theta)
         self.map = []
+
+    def get_estimated_position(self):
+        '''Returns the current estimate of the bot's position.'''
+        return self.pos
+
+    def move_observe_and_update(self, theta, distance):
+        '''Turn theta then go distance, make a new observation, and update estimated location.'''
+        # Issue commands to robot and recieve instrument readings.
+        odemetry = self.control.move(theta, distance)
+        observations = self.control.get_distance_reading()
+
+        # Update belief.
+        pos_x, pos_y, pos_theta = self.pos
+        pos_theta += theta
+        pos_x += odemetry * cos(pos_theta)
+        pos_y += odemetry * sin(pos_theta)
+        self.pos = (pos_x, pos_y, pos_theta)
+
+        # Extract landmarks.
+        spike_landmarks = self.extract_spike(observations)
+        ransac_landmarks = self.extract_ransac(observations)
+
+        # Associate landmarks.
+        associated_landmarks = self.associate_landmarks(LandmarkType.SPIKE, spike_landmarks)
+        associated_landmarks += self.associate_landmarks(LandmarkType.RANSAC, ransac_landmarks)
+
+        # TODO(Daniel): Update the EKF and use that to further refine belief.
+
+        # Update point map.
+        for i, reading in enumerate(raw_data):
+            observed_x = pos_x + (reading * cos(pos_theta - radians(i)))
+            observed_y = pos_y + (reading * sin(pos_theta - radians(i)))
+            self.map.append((observed_x, observed_y))
+            # TODO(Daniel): This will consume memory proportional to runtime, consider doing something nicer.
+
+    def associate_landmarks(self, landmark_type, landmarks):
+        '''Find existing landmarks which match the observed landmarks, or add new ones if necessary.
+           Return a list of (landmark, new_landmark_observation) pairs.'''
+        associated_landmarks = []
+        for landmark_pos in landmarks:
+            lx, ly = landmark_pos
+            associated_landmark = self.landmarks.find_nearest(landmark_type, lx, ly)
+            landmark_dist = (sqrt((lx - associated_landmark.x) ** 2 + (ly - associated_landmark.y) ** 2)
+                             if associated_landmark is not None
+                             else inf)
+            if landmark_dist > self.landmark_association_threshold:
+                # Existing landmark was too far away, so create a new one.
+                associated_landmark = Landmark(landmark_type, lx, ly)
+                self.landmarks.insert_landmark(associated_landmark)
+            else:
+                # The existing landmark was close enough, so count it as seen again.
+                associated_landmark.increment_seen()
+
+            associated_landmarks.append((associated_landmark, landmark_pos))
+
+        return associated_landmarks
 
     def extract_spike(self, raw_data):
         '''Observe environment and extract landmarks using the spike technique.'''

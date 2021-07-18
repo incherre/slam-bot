@@ -110,5 +110,32 @@ class TestSlamMethods(unittest.TestCase):
         self.assertTrue(min(map(lambda p: point_distance(p, (0, 15)), ransacs)) < 0.1)
         self.assertTrue(min(map(lambda p: point_distance(p, (0, -15)), ransacs)) < 0.1)
 
+    def test_landmark_association(self):
+        # Landmark DB should be empty, so this should insert a new spike landmark.
+        result = self.slam.associate_landmarks(LandmarkType.SPIKE, [(0, 0)])
+
+        self.assertEqual(result, [(Landmark(LandmarkType.SPIKE, 0, 0), (0, 0))])
+        self.assertEqual(self.slam.landmarks.find_nearest(LandmarkType.SPIKE, 10, 10), Landmark(LandmarkType.SPIKE, 0, 0))
+
+        # Make sure the landmark observation is associated with the closest landmark.
+        # Also test that the old landmark's times seen is incremented.
+        self.slam.landmarks.insert_landmark(Landmark(LandmarkType.SPIKE, 1, 0))
+        result = self.slam.associate_landmarks(LandmarkType.SPIKE, [(-1, 0)])
+
+        self.assertEqual(result, [(Landmark(LandmarkType.SPIKE, 0, 0), (-1, 0))])
+        self.assertEqual(result[0][0].times_seen, 2)
+
+        # Test that far away associations are discarded.
+        result = self.slam.associate_landmarks(LandmarkType.SPIKE, [(10, 0)])
+
+        self.assertEqual(result, [(Landmark(LandmarkType.SPIKE, 10, 0), (10, 0))])
+        self.assertEqual(self.slam.landmarks.find_nearest(LandmarkType.SPIKE, 10, 10), Landmark(LandmarkType.SPIKE, 10, 0))
+
+        # Test that incorrect types are not associated.
+        result = self.slam.associate_landmarks(LandmarkType.RANSAC, [(0, 1)])
+
+        self.assertEqual(result, [(Landmark(LandmarkType.RANSAC, 0, 1), (0, 1))])
+        self.assertEqual(self.slam.landmarks.find_nearest(LandmarkType.RANSAC, 0, 0), Landmark(LandmarkType.RANSAC, 0, 1))
+        
 if __name__ == '__main__':
     unittest.main()
