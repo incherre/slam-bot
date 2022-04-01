@@ -10,7 +10,6 @@ class EKF:
     def __init__(self, initial_uncertainty=0.95, odometry_noise=0.05,
                  range_noise=0.01, bearing_noise=radians(1),
                  innovation_lambda=1, landmark_threshold=5):
-        assert(initial_uncertainty > 0 and initial_uncertainty <= 1)
         self.landmark_types = []
         self.landmark_counts = []
         self.system_state = np.zeros((3, 1))  # Begin at x, y, theta = 0, 0, 0
@@ -29,6 +28,8 @@ class EKF:
         expected_matrix_size = ekf_index(len(self.landmark_types))
         assert(self.system_state.shape == (expected_matrix_size, 1))
         assert(self.covariance.shape == (expected_matrix_size, expected_matrix_size))
+
+        np.testing.assert_almost_equal(self.covariance, np.transpose(self.covariance))
 
     def pos(self):
         '''Returns the current position estimate as a vertical vector.'''
