@@ -66,7 +66,7 @@ def closest_point(line, point):
 
     return (line_x, line_y)
 
-def extract_spike(pos, raw_data, spike_threshold=0.5):
+def extract_spike(pos, raw_data, spike_threshold=0.5, **kwargs):
     '''Observe environment and extract landmarks using the spike technique.
        raw_data is a list of consecutive, evenly spaced, (d_theta, distance) pairs.'''
 
@@ -97,8 +97,8 @@ def extract_spike(pos, raw_data, spike_threshold=0.5):
     return landmarks
 
 def extract_ransac(pos, raw_data, seed_override=None,
-                   max_tries=100, samples=5, ransac_range=radians(20),
-                   error=0.1, consensus=30):
+                   ransac_max_tries=100, ransac_samples=5, ransac_range=radians(20),
+                   ransac_error=0.1, ransac_consensus=30, **kwargs):
     '''Observe environment and extract landmarks using the RANSAC technique.
        raw_data is a list of (d_theta, distance) pairs.'''
     assert(ransac_range > 0 and ransac_range <= pi)
@@ -116,8 +116,8 @@ def extract_ransac(pos, raw_data, seed_override=None,
              normalize_angle(angle)) for angle, distance in raw_data]
 
     associated = set()
-    for i in range(max_tries):
-        if len(data) - len(associated) < consensus:
+    for i in range(ransac_max_tries):
+        if len(data) - len(associated) < ransac_consensus:
             # If there are not enough points to reach consensus, then quit.
             break
 
@@ -136,12 +136,12 @@ def extract_ransac(pos, raw_data, seed_override=None,
             possible_points = [p for p in data if not p in associated
                                and p != point and (p[2] >= end or p[2] <= start)]
 
-        if len(possible_points) < (samples - 1):
+        if len(possible_points) < (ransac_samples - 1):
             # If there are not enough points for the fit, then restart.
             continue
 
         # Select configured number of points, always including the base point.
-        points = [point] + sample(possible_points, samples - 1)
+        points = [point] + sample(possible_points, ransac_samples - 1)
 
         # Generate best fit line.
         line = linear_regression(points)
@@ -150,9 +150,9 @@ def extract_ransac(pos, raw_data, seed_override=None,
         # Restart if line doesn't meet consensus.
         supporters = []
         for point in data:
-            if not point in associated and min_distance(line, point) < error:
+            if not point in associated and min_distance(line, point) < ransac_error:
                 supporters.append(point)
-        if len(supporters) < consensus:
+        if len(supporters) < ransac_consensus:
             continue
 
         # Associate all points that are close enough.

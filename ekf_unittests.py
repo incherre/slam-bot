@@ -7,7 +7,7 @@ from ekf import EKF
 
 class TestEKF(unittest.TestCase):
     def setUp(self):
-        self.empty_ekf = EKF(landmark_threshold=0)
+        self.empty_ekf = EKF(ekf_landmark_threshold=0)
 
     def tearDown(self):
         del self.empty_ekf

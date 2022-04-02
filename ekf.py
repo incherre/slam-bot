@@ -7,19 +7,19 @@ def ekf_index(landmark_index):
 
 class EKF:
     '''An extended kalman filter which supports heterogeneous landmark types.'''
-    def __init__(self, initial_uncertainty=0.95, odometry_noise=0.05,
-                 range_noise=0.01, bearing_noise=radians(1),
-                 innovation_lambda=1, landmark_threshold=5):
+    def __init__(self, ekf_initial_uncertainty=0.95, ekf_odometry_noise=0.05,
+                 ekf_range_noise=0.01, ekf_bearing_noise=radians(1),
+                 ekf_innovation_lambda=1, ekf_landmark_threshold=5, **kwargs):
         self.landmark_types = []
         self.landmark_counts = []
         self.system_state = np.zeros((3, 1))  # Begin at x, y, theta = 0, 0, 0
-        self.covariance = np.eye(3) * initial_uncertainty
+        self.covariance = np.eye(3) * ekf_initial_uncertainty
 
-        self.odometry_noise = odometry_noise
-        self.range_noise = range_noise
-        self.bearing_noise = bearing_noise
-        self.innovation_lambda = innovation_lambda
-        self.landmark_threshold = landmark_threshold
+        self.odometry_noise = ekf_odometry_noise
+        self.range_noise = ekf_range_noise
+        self.bearing_noise = ekf_bearing_noise
+        self.innovation_lambda = ekf_innovation_lambda
+        self.landmark_threshold = ekf_landmark_threshold
 
     def __assert_invariants(self):
         '''Asserts that all expected invariants are true.'''
@@ -46,7 +46,8 @@ class EKF:
         return np.array([[x], [y], [theta]])
 
     def update(self, delta_theta, odemetry, observed_landmarks):
-        '''Updates the efk given the controls and observations. Landmarks are given in the format [(x, y, type), ...].'''
+        '''Updates the efk given the controls and observations.
+           Landmarks are given in the format [(x, y, type), ...].'''
         # Naively update belief.
         self.system_state[:3] = self.pos_after_move(delta_theta, odemetry)
 

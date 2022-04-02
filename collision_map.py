@@ -26,15 +26,15 @@ def get_discrete_coord(scale, coord):
 
 class CollisionMap:
     '''A map which records possible obstacles given a sensor reading.'''
-    def __init__(self, scale=5, max_dist=100):
-        assert(isinstance(scale, int))
-        assert(scale > 0)
-        self.scale = scale
+    def __init__(self, collision_map_scale=5, collision_map_max_dist=100, **kwargs):
+        assert(isinstance(collision_map_scale, int))
+        assert(collision_map_scale > 0)
+        self.scale = collision_map_scale
 
         
-        assert(isinstance(max_dist, int))
-        assert(max_dist > 0)
-        self.max_dist = max_dist
+        assert(isinstance(collision_map_max_dist, int))
+        assert(collision_map_max_dist > 0)
+        self.max_dist = collision_map_max_dist
 
         self.map = {}
 

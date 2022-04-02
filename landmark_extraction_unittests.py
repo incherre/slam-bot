@@ -59,6 +59,22 @@ class TestExtractSpike(unittest.TestCase):
 
         self.assertEqual(extract_spike(pos, range_scan), expected_landmarks)
 
+    def test_simple_extraction_reversed(self):
+        pos = (0, 0, 0)
+        range_scan = [(radians(2),10), (radians(1),5), (radians(0),10)]
+
+        expected_landmarks = [(5 * cos(radians(1)), 5 * sin(radians(1)))]
+
+        self.assertEqual(extract_spike(pos, range_scan), expected_landmarks)
+
+    def test_wrap_around_reversed(self):
+        pos = (0, 0, 0)
+        range_scan = [(radians(270),10), (radians(180),10), (radians(90),10), (radians(0),5)]
+
+        expected_landmarks = [(5 * cos(radians(0)), 5 * sin(radians(0)))]
+
+        self.assertEqual(extract_spike(pos, range_scan), expected_landmarks)
+
 class TestExtractRANSAC(unittest.TestCase):
     def test_circle_scan(self):
         pos = (0, 0, 0)
@@ -101,6 +117,19 @@ class TestExtractRANSAC(unittest.TestCase):
         range_scan = [(radians(i + 0.5), min(10 / abs(sin(radians(i + 0.5))), 10 / abs(cos(radians(i + 0.5))))) for i in range(360)]
 
         expected_landmarks = [(-8, 0), (12, 0), (0, -5), (0, 15)]
+        actual_landmarks = extract_ransac(pos, range_scan, seed_override=0)
+
+        self.assertEqual(len(expected_landmarks), len(actual_landmarks))
+        for i in range(len(expected_landmarks)):
+            self.assertEqual(len(actual_landmarks[i]), 2)
+            self.assertAlmostEqual(expected_landmarks[i][0], actual_landmarks[i][0])
+            self.assertAlmostEqual(expected_landmarks[i][1], actual_landmarks[i][1])
+
+    def test_square_scan_reversed(self):
+        pos = (0, 0, 0)
+        range_scan = reversed([(radians(i + 0.5), min(10 / abs(sin(radians(i + 0.5))), 10 / abs(cos(radians(i + 0.5))))) for i in range(360)])
+
+        expected_landmarks = [(-10, 0), (10, 0), (0, 10), (0, -10)]
         actual_landmarks = extract_ransac(pos, range_scan, seed_override=0)
 
         self.assertEqual(len(expected_landmarks), len(actual_landmarks))
