@@ -2,6 +2,8 @@
 
 from math import sin, cos, inf, sqrt
 
+REPR_VERSION_STRING = "v1"
+
 class MapLocation:
     '''A location of the map that stores various counts.'''
     def __init__(self):
@@ -136,3 +138,14 @@ class CollisionMap:
             self.map[key] = MapLocation()
 
         return self.map[key]
+
+    def __repr__(self):
+        repr_str = REPR_VERSION_STRING + "\n"
+        repr_str += "\n".join(["scale,max_dist",
+                               ",".join([str(self.scale), str(self.max_dist)]),
+                               "x,y,stepped_count,missed_count,hit_count"] +
+                              [",".join(
+                                  [str(x), str(y), str(value.stepped_count),
+                                   str(value.missed_count), str(value.hit_count)]
+                               ) for [x, y], value in self.map.items()])
+        return repr_str
