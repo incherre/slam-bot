@@ -239,11 +239,14 @@ class CircleBot(Entity):
 class SimBotControl(SensingAndControl):
     '''A robot in a simulation.'''
 
-    def __init__(self, world, bot):
+    def __init__(self, world, bot, arc_degrees = 1):
         super().__init__()
 
         self.world = world
         self.bot = bot
+
+        assert(arc_degrees > 0 and arc_degrees < 360 and 360 % arc_degrees == 0)
+        self.arc_degrees = arc_degrees
 
     def get_distance_reading(self):
         '''Returns the distance reading.'''
@@ -252,7 +255,7 @@ class SimBotControl(SensingAndControl):
         reading = []
         x, y, theta = self.bot.get_pos()
 
-        for i in range(360):
+        for i in range(0, 360, self.arc_degrees):
             reading.append((radians(i), self.world.ray_cast(x, y, theta + radians(i))))
 
         return reading
