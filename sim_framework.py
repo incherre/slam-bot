@@ -43,8 +43,6 @@ class World:
 
     def move_ent(self, entity, distance, theta):
         '''Attempts to move entity distance in the theta direction, returns whether there was a collision.'''
-        entity.record_move(distance, theta)
-
         clearance = 0
         x, y, ent_theta = entity.get_pos()
         x_inc = self.resolution * cos(theta)
@@ -73,6 +71,7 @@ class World:
 
         entity.set_pos(x + (real_distance * cos(theta)), y + (real_distance * sin(theta)), ent_theta)
 
+        entity.record_move(real_distance, theta)
         return real_distance < distance
 
     def display(self, resolution):
