@@ -1,6 +1,6 @@
 '''An implementation of an EKF for SLAM which allows adding new landmarks.'''
 import numpy as np
-from math import inf, sqrt, sin, cos, atan, radians
+from math import inf, sqrt, sin, cos, atan2, radians
 
 def ekf_index(landmark_index):
     return 3 + (2 * landmark_index)
@@ -90,9 +90,9 @@ class EKF:
             kalman_gain = self.covariance @ np.transpose(mmj) @ np.linalg.inv(ic)
 
             landmark_deviation = (np.array([[sqrt((new_landmark_x - pos_x) ** 2 + (new_landmark_y - pos_y) ** 2)],
-                                            [atan((new_landmark_y - pos_y) / (new_landmark_x - pos_x)) - pos_theta]]) -
+                                            [atan2(new_landmark_y - pos_y, new_landmark_x - pos_x) - pos_theta]]) -
                                   np.array([[sqrt((old_landmark_x - pos_x) ** 2 + (old_landmark_y - pos_y) ** 2)],
-                                            [atan((old_landmark_y - pos_y) / (old_landmark_x - pos_x)) - pos_theta]]))
+                                            [atan2(old_landmark_y - pos_y, old_landmark_x - pos_x) - pos_theta]]))
 
             self.system_state += kalman_gain @ landmark_deviation
 
