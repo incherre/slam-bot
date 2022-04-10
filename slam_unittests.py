@@ -39,6 +39,9 @@ class TestSlamMethods(unittest.TestCase):
         self.assertIsInstance(self.bot, sim_framework.CircleBot)
         self.assertIsInstance(self.bot_control, sim_framework.SimBotControl)
         self.assertIsInstance(self.slam, Slam)
+
+    def test_position_getter(self):
+        self.assertEqual(self.slam.get_estimated_position(), (0, 0, 0))
         
 if __name__ == '__main__':
     unittest.main()

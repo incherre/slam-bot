@@ -1,4 +1,5 @@
 '''An implementation of SLAM techniques.'''
+
 from abc import ABC, abstractmethod
 from enum import Enum, auto, unique
 
@@ -61,7 +62,8 @@ class Slam:
 
     def get_estimated_position(self):
         '''Returns the current estimate of the bot's position.'''
-        return self.ekf.pos()
+        [x], [y], [theta] = self.ekf.pos()
+        return (x, y, theta)
 
     def move_observe_and_update(self, theta, distance):
         '''Turn theta then go distance, make a new observation, and update estimated location.'''
