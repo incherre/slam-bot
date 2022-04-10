@@ -255,7 +255,7 @@ class SimBotControl(SensingAndControl):
         reading = []
         x, y, theta = self.bot.get_pos()
 
-        for i in range(0, 360, self.arc_degrees):
+        for i in range(-180, 180, self.arc_degrees):
             reading.append((radians(i), self.world.ray_cast(x, y, theta + radians(i))))
 
         return reading
