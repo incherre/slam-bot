@@ -142,5 +142,12 @@ class TestCollisionMap(unittest.TestCase):
         self.assertEqual(self.empty_map.get_location(5, -5), expected_start)
         self.assertEqual(self.empty_map.get_location(5, 5), expected_end)
 
+    def test_key_function(self):
+        self.assertEqual(self.empty_map.get_key(0, 0), (0, 0))
+        self.assertEqual(self.empty_map.get_key(2, -2), (0, 0))
+        self.assertEqual(self.empty_map.get_key(3, 3), (5, 5))
+        self.assertEqual(self.empty_map.get_key(2, 10), (0, 10))
+        self.assertEqual(self.empty_map.get_key(-10, -2), (-10, 0))
+
 if __name__ == '__main__':
     unittest.main()

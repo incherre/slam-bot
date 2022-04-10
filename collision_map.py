@@ -38,9 +38,15 @@ class CollisionMap:
 
         self.map = {}
 
+    def get_key(self, x, y):
+        '''Returns the key into the internal map corresponding to the provided point.'''
+        shifted_x = x + (self.scale / 2)
+        shifted_y = y + (self.scale / 2)
+        return (int(shifted_x - shifted_x % self.scale), int(shifted_y - shifted_y % self.scale))
+
     def get_location(self, x, y, create = False):
         '''Retrieves the obstacle information for the given location.'''
-        key = self.__get_key(x, y)
+        key = self.get_key(x, y)
         if not key in self.map and not create:
             return MapLocation()
 
@@ -51,7 +57,7 @@ class CollisionMap:
 
     def get_neighbor_keys(self, x, y):
         '''Get the keys for all 8 adjacent neighbor cells.'''
-        key_x, key_y = self.__get_key(x, y)
+        key_x, key_y = self.get_key(x, y)
         neighbors = []
         
         for dx in [-self.scale, 0, self.scale]:
@@ -67,7 +73,7 @@ class CollisionMap:
         '''Record the appropriate counts for each of the given (delta_theta, distance) pairs based out
            of the provided current location.'''
 
-        current_location_key = self.__get_key(x, y)
+        current_location_key = self.get_key(x, y)
         self.__get_or_insert_location(current_location_key).stepped_count += 1
 
         for delta_theta, distance in observations:
@@ -75,10 +81,10 @@ class CollisionMap:
 
     def __add_line(self, start_x, start_y, theta, distance, current_location_key):
         '''Record all spots along the given line as passed through, and records the final spot as hit.'''
-        start_point_key = self.__get_key(start_x, start_y)
+        start_point_key = self.get_key(start_x, start_y)
         end_x = start_x + min(distance, self.max_dist) * cos(theta)
         end_y = start_y + min(distance, self.max_dist) * sin(theta)
-        end_point_key = self.__get_key(end_x, end_y)
+        end_point_key = self.get_key(end_x, end_y)
         
         if distance <= self.max_dist:
             self.__get_or_insert_location(end_point_key).hit_count += 1
@@ -91,7 +97,7 @@ class CollisionMap:
         c = (start_x * sin(theta)) - (start_y * cos(theta))
 
         while current_distance <= self.max_dist:
-            if self.__get_key(x, y) != start_point_key:
+            if self.get_key(x, y) != start_point_key:
                 # Don't record the starting point as passed through,
                 # since it will be recorded as stepped in.
                 self.get_location(x, y, create = True).missed_count += 1
@@ -122,12 +128,6 @@ class CollisionMap:
             x = next_x
             y = next_y
             current_distance = sqrt((end_x - x) ** 2 + (end_y - y) ** 2)
-
-    def __get_key(self, x, y):
-        '''Returns the key into the internal map corresponding to the provided point.'''
-        shifted_x = x + (self.scale / 2)
-        shifted_y = y + (self.scale / 2)
-        return (int(shifted_x - shifted_x % self.scale), int(shifted_y - shifted_y % self.scale))
 
     def __get_or_insert_location(self, key):
         '''Retrieves the obstacle information for the given location, but will insert
