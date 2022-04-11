@@ -1,4 +1,4 @@
 Tasks:
 -Testing for Slam class
--Things outside of basic SLAM
-	-Target un-observed portions of the environment
+-Testing for Explorer class
+-Track down and resolve those occasional divide by zero warnings

@@ -1,16 +1,25 @@
 '''Robot sim with a nicer display.'''
-from sim_framework import *
+
 from math import radians
+from datetime import datetime
 import tkinter
+
+from sim_framework import *
+import slam
+from explorer import Explorer
 
 BACKGROUND_COLOR = 'grey60'
 ENTITY_COLOR = 'RoyalBlue1'
 OBSTACLE_COLOR = 'black'
+ESTIMATED_OBSTACLE_COLOR = 'red'
+ESTIMATED_OBSTACLE_TAG = 'estimated_obstacle'
+ESTIMATED_POS_COLOR = 'green'
+ESTIMATED_POS_TAG = 'estimated_pos'
 ENTITY_TAG = 'entity'
 
 class TKWorld(World):
     '''A world that will display via tkinter instead of ascii.'''
-    def __init__(self, root, x_min, x_max, y_min, y_max, resolution=2, max_dist=10000, collision_delta_theta=1):
+    def __init__(self, root, x_min, x_max, y_min, y_max, resolution=2, max_dist=1414, collision_delta_theta=1):
         super().__init__(resolution=resolution, max_dist=max_dist, collision_delta_theta=collision_delta_theta)
         if x_min >= x_max:
             raise ValueError('Improperly ordered x boundaries')
@@ -55,10 +64,12 @@ class TKWorld(World):
 
         return (disp_x, disp_y)
 
-    def display(self):
-        '''Displays the environment, by default just as a character array.'''
+    def display(self, collision_map={}, estimated_pos=None, mark_radius=10):
+        '''Displays the environment.'''
         try:
             self.room_canvas.delete(ENTITY_TAG)
+            self.room_canvas.delete(ESTIMATED_OBSTACLE_TAG)
+            self.room_canvas.delete(ESTIMATED_POS_TAG)
         except _tkinter.TclError:
             return
 
@@ -77,29 +88,80 @@ class TKWorld(World):
             else:
                 print('Error: Unknown entity type found in sim:', type(ent).__name__)
 
+        for [obs_x, obs_y], properties in collision_map.items():
+            x, y = self.get_canvas_coords(obs_x, obs_y)
+            if properties.hit_count > 1:
+                x1 = x - mark_radius
+                y1 = y - mark_radius
+                x2 = x + mark_radius
+                y2 = y + mark_radius
+                self.room_canvas.create_oval(x1, y1,
+                                             x2, y2,
+                                             fill=ESTIMATED_OBSTACLE_COLOR,
+                                             outline=ESTIMATED_OBSTACLE_COLOR,
+                                             tags=(ESTIMATED_OBSTACLE_TAG,))
+
+        if estimated_pos is not None:
+            pos_x, pos_y, _ = estimated_pos
+            x, y = self.get_canvas_coords(pos_x, pos_y)
+            x1 = x - mark_radius
+            y1 = y - mark_radius
+            x2 = x + mark_radius
+            y2 = y + mark_radius
+            self.room_canvas.create_oval(x1, y1,
+                                         x2, y2,
+                                         fill="",
+                                         outline=ESTIMATED_POS_COLOR,
+                                         width=5,
+                                         tags=(ESTIMATED_POS_TAG,))
+
         self.room_canvas.pack()
 
 if __name__ == '__main__':
-    root = tkinter.Tk()
-    W = TKWorld(root, -500, 500, -500, 500)
-    W.add_obs(Box(-500, -250, 250, 500))
-    W.add_obs(Box(-450, -200, 200, 450))
-    W.add_obs(Box(-400, -150, 150, 400))
-    W.add_obs(Box(-350, -100, 100, 350))
+    times_per_second = 10
+    milliseconds_per_update = int(1000 / times_per_second)
 
-    bot = CircleBot(100, 0, 0, 0)
+    root = tkinter.Tk()
+    W = TKWorld(root, -495, 495, -495, 495, resolution=10)
+    W.add_obs(Box(-245, -205, 205, 245))
+    W.add_obs(Box(205, 245, 205, 245))
+    W.add_obs(Box(-245, -205, -245, -205))
+    W.add_obs(Box(205, 245, -245, -205))
+
+    bot = CircleBot(10, 0, 0, 0)
     W.add_ent(bot)
 
-    theta = radians(0)
+    bot_control = SimBotControl(W, bot, arc_degrees = 5)
+
+    options = {}
+    options[slam.COLLISION_MAP_SCALE] = 30
+    options[slam.COLLISION_MAP_MAX_DISTANCE] = 500
+    options[slam.EKF_ODOMETRY_NOISE] = 0.01
+    options[slam.EKF_RANGE_NOISE] = 12
+    options[slam.EKF_BEARING_NOISE] = radians(1)
+    options[slam.EKF_INNOVATION_LAMBDA] = 0.5
+    options[slam.EKF_LANDMARK_THRESHOLD] = 7
+    options[slam.SPIKE_THRESHOLD] = 400
+    options[slam.RANSAC_SAMPLES] = 4
+    options[slam.RANSAC_RANGE] = radians(90)
+    options[slam.RANSAC_ERROR] = 10
+    options[slam.RANSAC_CONSENSUS] = 8
+    slam_instance = slam.Slam(bot_control, option_dictionary=options)
+    explorer = Explorer(slam_instance)
+
     def update():
-        root.after(int(1000 / 60), update)
+        start = datetime.now()
+        W.display(collision_map = slam_instance.get_collision_map().map,
+                  estimated_pos = slam_instance.get_estimated_position())
+        explorer.step(debug=False)
+        miliseconds_taken = (datetime.now() - start).total_seconds() * 1000
 
-        global theta
-        W.display()
-        theta -= radians(0.2)
-        if W.move_ent(bot, 5, theta):
-            theta -= radians(360 * 1.618)
-            theta = theta % radians(360)
+        if miliseconds_taken >= milliseconds_per_update:
+            print("Warning, SLAM processing took too long: {}ms!".format(miliseconds_taken))
+            root.after(0, update)
+        else:
+            root.after(int(milliseconds_per_update - miliseconds_taken), update)
 
-    root.after(int(1000 / 60), update)
+    W.display()
+    root.after(milliseconds_per_update, update)
     root.mainloop()
