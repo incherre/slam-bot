@@ -153,5 +153,27 @@ class TestCollisionMap(unittest.TestCase):
         self.assertEqual(self.empty_map.get_key(2, 10), (0, 10))
         self.assertEqual(self.empty_map.get_key(-10, -2), (-10, 0))
 
+    def test_map_deserialize(self):
+        non_default_map = CollisionMap(collision_map_scale=50, collision_map_max_dist=1000)
+        non_default_map.record_observations(0, 0, 0, [(0, 100)])
+        serialized_map_string = str(non_default_map)
+        deserialized_map = CollisionMap.from_string(serialized_map_string)
+
+        expected_start = MapLocation()
+        expected_start.stepped_count += 1
+        
+        expected_middle = MapLocation()
+        expected_middle.missed_count += 1
+
+        expected_end = MapLocation()
+        expected_end.hit_count += 1
+
+        self.assertEqual(deserialized_map.scale, 50)
+        self.assertEqual(deserialized_map.max_dist, 1000)
+        self.assertEqual(set(deserialized_map.map.keys()), set([(0, 0), (50, 0), (100, 0)]))
+        self.assertEqual(deserialized_map.get_location(0, 0), expected_start)
+        self.assertEqual(deserialized_map.get_location(50, 0), expected_middle)
+        self.assertEqual(deserialized_map.get_location(100, 0), expected_end)
+
 if __name__ == '__main__':
     unittest.main()
