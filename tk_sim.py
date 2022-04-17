@@ -3,6 +3,7 @@
 from math import radians
 from datetime import datetime
 import tkinter
+import os
 
 from sim_framework import *
 import slam
@@ -165,3 +166,7 @@ if __name__ == '__main__':
     W.display()
     root.after(milliseconds_per_update, update)
     root.mainloop()
+
+    f = open(os.path.join(".", "results", "tk_sim_collision_map.txt"), "w")
+    f.write(str(slam_instance.get_collision_map()))
+    f.close()
