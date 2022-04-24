@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
         if miliseconds_taken >= milliseconds_per_update:
             print("Warning, SLAM processing took too long: {}ms!".format(miliseconds_taken))
-            root.after(0, update)
+            root.after(1, update)
         else:
             root.after(int(milliseconds_per_update - miliseconds_taken), update)
 
