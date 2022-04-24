@@ -1,4 +1,3 @@
 Tasks:
--Testing for Slam class
 -Testing for Explorer class
 -Track down and resolve those occasional divide by zero warnings
