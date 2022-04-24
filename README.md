@@ -1,7 +1,5 @@
 # slam-bot
-This is a largely standard implementation of a Simultaneous Localization And Mapping algorithm using an Extended Kalman Filter for 2-D mobile robots.
-
-## Slam class
+This is a largely standard implementation of a [Simultaneous Localization And Mapping](https://en.wikipedia.org/wiki/Simultaneous_localization_and_mapping) algorithm using an [Extended Kalman Filter](https://en.wikipedia.org/wiki/Extended_Kalman_filter)
 The file slam.py contains the main interface to the algorithm. The measurement model is a continuous array of evenly spaced range measurements.
 The action model is that at each timestep the robot will turn some angle and then travel forward some distance in a straight line.
 The interface allows movement, querying current estimated position, and access to a collision map based off of the measurement history.
