@@ -26,6 +26,12 @@ def get_discrete_coord(scale, coord):
     shifted = coord + (scale / 2)
     return int(shifted - shifted % scale)
 
+def v_dot(v1, v2):
+    return v1[0] * v2[0] + v1[1] * v2[1]
+
+def v_diff(v1, v2):
+    return (v1[0] - v2[0], v1[1] - v2[1])
+
 class CollisionMap:
     '''A map which records possible obstacles given a sensor reading.'''
     def __init__(self, collision_map_scale=5, collision_map_max_dist=100, **kwargs):
@@ -38,6 +44,7 @@ class CollisionMap:
         assert(collision_map_max_dist > 0)
         self.max_dist = collision_map_max_dist
 
+        self.rectangle_tolerance = collision_map_scale / 1000
         self.map = {}
 
     @classmethod
@@ -105,6 +112,108 @@ class CollisionMap:
 
         for delta_theta, distance in observations:
             self.__add_line(x, y, theta + delta_theta, distance, current_location_key)
+
+    def get_locations_within_rectangle(self, p1, p2, p3, p4):
+        '''Returns the set of all observed locations partially or fully inside the given rectangle.'''
+        assert abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        assert abs(p1[0] - p3[0]) + abs(p1[1] - p3[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        assert abs(p1[0] - p4[0]) + abs(p1[1] - p4[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        assert abs(p2[0] - p3[0]) + abs(p2[1] - p3[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        assert abs(p2[0] - p4[0]) + abs(p2[1] - p4[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        assert abs(p3[0] - p4[0]) + abs(p3[1] - p4[1]) > self.rectangle_tolerance, "Provided rectangle points are equal (or close enough)."
+        
+        center_x = (p1[0] + p2[0] + p3[0] + p4[0]) / 4
+        center_y = (p1[1] + p2[1] + p3[1] + p4[1]) / 4
+        center_dist = (center_x - p1[0]) ** 2 + (center_y - p1[1]) ** 2
+
+        for px, py in [p2, p3, p4]:
+            p_dist = (center_x - px) ** 2 + (center_y - py) ** 2
+            assert abs(p_dist - center_dist) < self.rectangle_tolerance, "Provided points do not make a rectangle."
+
+        edge12_dist = v_dot(v_diff(p1, p2), v_diff(p1, p2))
+        diag13_dist = v_dot(v_diff(p1, p3), v_diff(p1, p3))
+        assert edge12_dist < diag13_dist, "Provided rectangle points are incorrectly ordered."
+
+        # Precompute some the rectangle's axes and dimensions.
+        rectangle_axis_1 = v_diff(p1, p2)
+        rectangle_axis_1_norm = sqrt(v_dot(rectangle_axis_1, rectangle_axis_1))
+        rectangle_axis_1_unit = (rectangle_axis_1[0] / rectangle_axis_1_norm,
+                                 rectangle_axis_1[1] / rectangle_axis_1_norm)
+        min_rectangle_axis_1 = min(v_dot(p1, rectangle_axis_1_unit), v_dot(p2, rectangle_axis_1_unit))
+        max_rectangle_axis_1 = max(v_dot(p1, rectangle_axis_1_unit), v_dot(p2, rectangle_axis_1_unit))
+
+        rectangle_axis_2 = v_diff(p1, p4)
+        rectangle_axis_2_norm = sqrt(v_dot(rectangle_axis_2, rectangle_axis_2))
+        rectangle_axis_2_unit = (rectangle_axis_2[0] / rectangle_axis_2_norm,
+                                 rectangle_axis_2[1] / rectangle_axis_2_norm)
+        min_rectangle_axis_2 = min(v_dot(p1, rectangle_axis_2_unit), v_dot(p4, rectangle_axis_2_unit))
+        max_rectangle_axis_2 = max(v_dot(p1, rectangle_axis_2_unit), v_dot(p4, rectangle_axis_2_unit))
+
+        # Get the grid-aligned bounding box to check.
+        min_x, min_y = self.get_key(min(p1[0], p2[0], p3[0], p4[0]), min(p1[1], p2[1], p3[1], p4[1]))
+        max_x, max_y = self.get_key(max(p1[0], p2[0], p3[0], p4[0]), max(p1[1], p2[1], p3[1], p4[1]))
+        results = {}
+
+        current_x = min_x
+        current_y = min_y
+        while current_y <= max_y:
+            if not (current_x, current_y) in self.map:
+                # This location has not been observed.
+                current_x += self.scale
+                if current_x > max_x:
+                    current_x = min_x
+                    current_y += self.scale
+                continue
+
+            location_p1 = (current_x - (self.scale / 2), current_y - (self.scale / 2))
+            location_p2 = (current_x + (self.scale / 2), current_y - (self.scale / 2))
+            location_p3 = (current_x - (self.scale / 2), current_y + (self.scale / 2))
+            location_p4 = (current_x + (self.scale / 2), current_y + (self.scale / 2))
+
+            # Using the Separating Axis Theorem to check for overlap between the
+            # rectangle and the location domain. Though I skip projecting the
+            # rectangle onto the location's axes, since those checks are covered
+            # by the loop invariants.
+            min_location_axis_1 = min(v_dot(location_p1, rectangle_axis_1_unit),
+                                      v_dot(location_p2, rectangle_axis_1_unit),
+                                      v_dot(location_p3, rectangle_axis_1_unit),
+                                      v_dot(location_p4, rectangle_axis_1_unit))
+            max_location_axis_1 = max(v_dot(location_p1, rectangle_axis_1_unit),
+                                      v_dot(location_p2, rectangle_axis_1_unit),
+                                      v_dot(location_p3, rectangle_axis_1_unit),
+                                      v_dot(location_p4, rectangle_axis_1_unit))
+            if min_location_axis_1 > max_rectangle_axis_1 or min_rectangle_axis_1 > max_location_axis_1:
+                # This location is not inside the rectangle.
+                current_x += self.scale
+                if current_x > max_x:
+                    current_x = min_x
+                    current_y += self.scale
+                continue
+
+            min_location_axis_2 = min(v_dot(location_p1, rectangle_axis_2_unit),
+                                      v_dot(location_p2, rectangle_axis_2_unit),
+                                      v_dot(location_p3, rectangle_axis_2_unit),
+                                      v_dot(location_p4, rectangle_axis_2_unit))
+            max_location_axis_2 = max(v_dot(location_p1, rectangle_axis_2_unit),
+                                      v_dot(location_p2, rectangle_axis_2_unit),
+                                      v_dot(location_p3, rectangle_axis_2_unit),
+                                      v_dot(location_p4, rectangle_axis_2_unit))
+            if min_location_axis_2 > max_rectangle_axis_2 or min_rectangle_axis_2 > max_location_axis_2:
+                # This location is not inside the rectangle.
+                current_x += self.scale
+                if current_x > max_x:
+                    current_x = min_x
+                    current_y += self.scale
+                continue
+            
+            results[(current_x, current_y)] = self.get_location(current_x, current_y)
+
+            current_x += self.scale
+            if current_x > max_x:
+                current_x = min_x
+                current_y += self.scale
+
+        return results
 
     def __add_line(self, start_x, start_y, theta, distance, current_location_key):
         '''Record all spots along the given line as passed through, and records the final spot as hit.'''

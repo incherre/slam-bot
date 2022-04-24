@@ -175,5 +175,69 @@ class TestCollisionMap(unittest.TestCase):
         self.assertEqual(deserialized_map.get_location(50, 0), expected_middle)
         self.assertEqual(deserialized_map.get_location(100, 0), expected_end)
 
+    def test_get_locations_within_rectangle_error_checking(self):
+        # Duplicate points.
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (0, 0), (1, 1), (2, 2))
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (1, 1), (0, 0), (2, 2))
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (1, 1), (2, 2), (0, 0))
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (1, 1), (1, 1), (2, 2))
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (1, 1), (2, 2), (1, 1))
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (1, 1), (2, 2), (2, 2))
+
+        # Not a rectangle.
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (0, 1), (1, 1), (2, 2))
+
+        # Wrong order.
+        self.assertRaises(AssertionError,
+                          self.empty_map.get_locations_within_rectangle,
+                          (0, 0), (0, 1), (1, 0), (1, 1))
+
+    def test_get_locations_within_rectangle(self):
+        self.assertEqual(self.empty_map.get_locations_within_rectangle(
+            (0, 0), (0, 1), (1, 1), (1, 0)), {})
+
+        # Fill in a square.
+        for i in range(0, 50, 5):
+            self.empty_map.record_observations(0, i, 0, [(0, 50)])
+
+        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
+            (0, 0), (0, 10), (10, 10), (10, 0)).keys()),
+                         set([(0, 0), (0, 5), (0, 10),
+                              (5, 0), (5, 5), (5, 10),
+                              (10, 0), (10, 5), (10, 10)]))
+
+        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
+            (1, 5), (5, 9), (9, 5), (5, 1)).keys()),
+                         set([(0, 5), (5, 0),
+                              (5, 5), (5, 10),
+                              (10, 5)]))
+
+        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
+            (0, -10), (0, 10), (10, 10), (10, -10)).keys()),
+                         set([(0, 0), (0, 5), (0, 10),
+                              (5, 0), (5, 5), (5, 10),
+                              (10, 0), (10, 5), (10, 10)]))
+
+        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
+            (1, 5), (10, 14), (14, 10), (5, 1)).keys()),
+                         set([(0, 5), (5, 0),
+                              (5, 5), (5, 10),
+                              (10, 5), (10, 10),
+                              (10, 15), (15, 10)]))
+
 if __name__ == '__main__':
     unittest.main()
