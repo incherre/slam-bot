@@ -20,8 +20,8 @@ ENTITY_TAG = 'entity'
 
 class TKWorld(World):
     '''A world that will display via tkinter instead of ascii.'''
-    def __init__(self, root, x_min, x_max, y_min, y_max, resolution=2, max_dist=1414, collision_delta_theta=1):
-        super().__init__(resolution=resolution, max_dist=max_dist, collision_delta_theta=collision_delta_theta)
+    def __init__(self, root, x_min, x_max, y_min, y_max, resolution=2, max_dist=1414):
+        super().__init__(resolution=resolution, max_dist=max_dist)
         if x_min >= x_max:
             raise ValueError('Improperly ordered x boundaries')
         self.x_min = x_min

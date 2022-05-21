@@ -1,17 +1,16 @@
 '''Robot simulation for testing SLAM techniques.'''
 from abc import ABC, abstractmethod
-from math import sqrt, sin, cos, floor, ceil, radians, inf
+from math import sqrt, sin, cos, floor, ceil, radians, inf, atan2
 from slam import SensingAndControl
 
 class World:
     '''The World class manages all the simulation resources.'''
 
-    def __init__(self, resolution=0.01, max_dist=1000, collision_delta_theta=1):
+    def __init__(self, resolution=0.01, max_dist=1000):
         self.obstacles = []
         self.entities = []
         self.resolution = resolution
         self.max_dist = max_dist
-        self.collision_delta_theta = collision_delta_theta
 
     def add_obs(self, obstacle):
         '''Adds an obstacle to the list.'''
@@ -62,10 +61,12 @@ class World:
         else:
             clearance += self.resolution / 2
 
+        collision_delta_theta = atan2(clearance, distance + clearance)
+
         collision_distance = min(
-            self.ray_cast(x, y, theta - self.collision_delta_theta),
+            self.ray_cast(x, y, theta - collision_delta_theta),
             self.ray_cast(x, y, theta),
-            self.ray_cast(x, y, theta + self.collision_delta_theta))
+            self.ray_cast(x, y, theta + collision_delta_theta))
         max_distance = max(collision_distance - clearance, 0)
         real_distance = min(max_distance, distance)
 
