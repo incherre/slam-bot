@@ -153,18 +153,11 @@ class CollisionMap:
         min_x, min_y = self.get_key(min(p1[0], p2[0], p3[0], p4[0]), min(p1[1], p2[1], p3[1], p4[1]))
         max_x, max_y = self.get_key(max(p1[0], p2[0], p3[0], p4[0]), max(p1[1], p2[1], p3[1], p4[1]))
         results = {}
+        location_count = 0
 
         current_x = min_x
         current_y = min_y
         while current_y <= max_y:
-            if not (current_x, current_y) in self.map:
-                # This location has not been observed.
-                current_x += self.scale
-                if current_x > max_x:
-                    current_x = min_x
-                    current_y += self.scale
-                continue
-
             location_p1 = (current_x - (self.scale / 2), current_y - (self.scale / 2))
             location_p2 = (current_x + (self.scale / 2), current_y - (self.scale / 2))
             location_p3 = (current_x - (self.scale / 2), current_y + (self.scale / 2))
@@ -205,6 +198,16 @@ class CollisionMap:
                     current_x = min_x
                     current_y += self.scale
                 continue
+
+            location_count += 1
+
+            if not (current_x, current_y) in self.map:
+                # This location has not been observed.
+                current_x += self.scale
+                if current_x > max_x:
+                    current_x = min_x
+                    current_y += self.scale
+                continue
             
             results[(current_x, current_y)] = self.get_location(current_x, current_y)
 
@@ -213,7 +216,7 @@ class CollisionMap:
                 current_x = min_x
                 current_y += self.scale
 
-        return results
+        return results, location_count
 
     def __add_line(self, start_x, start_y, theta, distance, current_location_key):
         '''Record all spots along the given line as passed through, and records the final spot as hit.'''

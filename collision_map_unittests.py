@@ -208,36 +208,44 @@ class TestCollisionMap(unittest.TestCase):
 
     def test_get_locations_within_rectangle(self):
         self.assertEqual(self.empty_map.get_locations_within_rectangle(
-            (0, 0), (0, 1), (1, 1), (1, 0)), {})
+            (0, 0), (0, 1), (1, 1), (1, 0)), ({}, 1))
 
         # Fill in a square.
         for i in range(0, 50, 5):
             self.empty_map.record_observations(0, i, 0, [(0, 50)])
 
-        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
-            (0, 0), (0, 10), (10, 10), (10, 0)).keys()),
+        location_map, location_count = self.empty_map.get_locations_within_rectangle(
+            (0, 0), (0, 10), (10, 10), (10, 0))
+        self.assertEqual(set(location_map.keys()),
                          set([(0, 0), (0, 5), (0, 10),
                               (5, 0), (5, 5), (5, 10),
                               (10, 0), (10, 5), (10, 10)]))
+        self.assertEqual(location_count, 9)
 
-        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
-            (1, 5), (5, 9), (9, 5), (5, 1)).keys()),
+        location_map, location_count = self.empty_map.get_locations_within_rectangle(
+            (1, 5), (5, 9), (9, 5), (5, 1))
+        self.assertEqual(set(location_map.keys()),
                          set([(0, 5), (5, 0),
                               (5, 5), (5, 10),
                               (10, 5)]))
+        self.assertEqual(location_count, 5)
 
-        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
-            (0, -10), (0, 10), (10, 10), (10, -10)).keys()),
+        location_map, location_count = self.empty_map.get_locations_within_rectangle(
+            (0, -10), (0, 10), (10, 10), (10, -10))
+        self.assertEqual(set(location_map.keys()),
                          set([(0, 0), (0, 5), (0, 10),
                               (5, 0), (5, 5), (5, 10),
                               (10, 0), (10, 5), (10, 10)]))
+        self.assertEqual(location_count, 15)
 
-        self.assertEqual(set(self.empty_map.get_locations_within_rectangle(
-            (1, 5), (10, 14), (14, 10), (5, 1)).keys()),
+        location_map, location_count = self.empty_map.get_locations_within_rectangle(
+            (1, 5), (10, 14), (14, 10), (5, 1))
+        self.assertEqual(set(location_map.keys()),
                          set([(0, 5), (5, 0),
                               (5, 5), (5, 10),
                               (10, 5), (10, 10),
                               (10, 15), (15, 10)]))
+        self.assertEqual(location_count, 8)
 
 if __name__ == '__main__':
     unittest.main()
