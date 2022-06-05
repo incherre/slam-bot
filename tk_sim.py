@@ -124,10 +124,10 @@ if __name__ == '__main__':
 
     root = tkinter.Tk()
     W = TKWorld(root, -500, 500, -500, 500, resolution=9)
-    W.add_obs(Box(-230, -200, 200, 230))
-    W.add_obs(Box(200, 230, 200, 230))
-    W.add_obs(Box(-230, -200, -230, -200))
-    W.add_obs(Box(200, 230, -230, -200))
+    W.add_obs(Box(-200, -170, 200, 230))
+    W.add_obs(Box(200, 230, 170, 200))
+    W.add_obs(Box(-230, -200, -200, -170))
+    W.add_obs(Box(170, 200, -230, -200))
 
     bot = CircleBot(10, 0, 0, 0)
     W.add_ent(bot)
