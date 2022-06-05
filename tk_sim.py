@@ -123,11 +123,11 @@ if __name__ == '__main__':
     milliseconds_per_update = int(1000 / times_per_second)
 
     root = tkinter.Tk()
-    W = TKWorld(root, -495, 495, -495, 495, resolution=10)
-    W.add_obs(Box(-245, -205, 205, 245))
-    W.add_obs(Box(205, 245, 205, 245))
-    W.add_obs(Box(-245, -205, -245, -205))
-    W.add_obs(Box(205, 245, -245, -205))
+    W = TKWorld(root, -500, 500, -500, 500, resolution=9)
+    W.add_obs(Box(-230, -200, 200, 230))
+    W.add_obs(Box(200, 230, 200, 230))
+    W.add_obs(Box(-230, -200, -230, -200))
+    W.add_obs(Box(200, 230, -230, -200))
 
     bot = CircleBot(10, 0, 0, 0)
     W.add_ent(bot)
@@ -148,7 +148,7 @@ if __name__ == '__main__':
     options[slam.RANSAC_ERROR] = 10
     options[slam.RANSAC_CONSENSUS] = 8
     slam_instance = slam.Slam(bot_control, option_dictionary=options)
-    explorer = Explorer(slam_instance)
+    explorer = Explorer(slam_instance, 10)
 
     def update():
         start = datetime.now()
